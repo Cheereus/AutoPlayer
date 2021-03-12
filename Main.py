@@ -115,7 +115,7 @@ class ImageTimer(QtCore.QThread):
 def addVideo(self, rlayout):
     self.player = QMediaPlayer()
     self.video_widget = QVideoWidget()
-    # self.video_widget.setStyleSheet("background-color:black;")
+    self.video_widget.setStyleSheet("background-color:black;")
 
     rlayout.addWidget(self.video_widget)
     self.video_widget.hide()
@@ -178,15 +178,14 @@ class ApplicationWindow(QMainWindow):
 
         # 表单初始化
         self.addForm(self.llayout)
+        # 视频播放窗口初始化
+        addVideo(self, self.rlayout)
 
         # 窗口初始化
         mlayout.addLayout(self.llayout)
         mlayout.addLayout(self.rlayout)
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
-
-        # 视频播放窗口初始化
-        addVideo(self, self.rlayout)
 
         # 图片展示窗口初始化
         # self.main_widget.showMinimized()
@@ -361,6 +360,8 @@ class ApplicationWindow(QMainWindow):
 
     # 播放视频
     def playVideo(self, video):
+        self._fullscreen = True
+        self.video_widget.setFullScreen(self._fullscreen)
         self.player.setMedia(QMediaContent(QUrl.fromLocalFile(video)))  # 选取视频文件
         self.player.play()
 
