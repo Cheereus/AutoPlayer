@@ -8,11 +8,56 @@ import time
 import sip
 import os
 from pptx_tools import utils
+import fitz
+import datetime
+from win32com.client import gencache
+from win32com.client import constants, gencache
 
 
 # 将PPT转为图片
 def get_ppt_img(filePath, png_folder):
     utils.save_pptx_as_png(png_folder, filePath, overwrite_folder=True)
+    return True
+
+
+def word_to_pdf(wordPath, pdfPath):
+    """
+    word转pdf
+    :param wordPath: word文件路径
+    :param pdfPath:  生成pdf文件路径
+    """
+    word = gencache.EnsureDispatch('Word.Application')
+    doc = word.Documents.Open(wordPath, ReadOnly=1)
+    doc.ExportAsFixedFormat(pdfPath,
+                            constants.wdExportFormatPDF,
+                            Item=constants.wdExportDocumentWithMarkup,
+                            CreateBookmarks=constants.wdExportCreateHeadingBookmarks)
+    word.Quit(constants.wdDoNotSaveChanges)
+
+
+def get_pdf_img(pdfPath, imagePath):
+    startTime_pdf2img = datetime.datetime.now()  # 开始时间
+
+    print("imagePath=" + imagePath)
+    pdfDoc = fitz.open(pdfPath)
+    for pg in range(pdfDoc.pageCount):
+        page = pdfDoc[pg]
+        rotate = int(0)
+        # 每个尺寸的缩放系数为1.3，这将为我们生成分辨率提高2.6的图像。
+        # 此处若是不做设置，默认图片大小为：792X612, dpi=72
+        zoom_x = 1.33333333  # (1.33333333-->1056x816)   (2-->1584x1224)
+        zoom_y = 1.33333333
+        mat = fitz.Matrix(zoom_x, zoom_y).preRotate(rotate)
+        pix = page.getPixmap(matrix=mat, alpha=False)
+
+        if not os.path.exists(imagePath):  # 判断存放图片的文件夹是否存在
+            os.makedirs(imagePath)  # 若图片文件夹不存在就创建
+
+        pix.writePNG(imagePath + '/' + 'images_%s.png' % pg)  # 将图片写入指定的文件夹内
+
+    endTime_pdf2img = datetime.datetime.now()  # 结束时间
+    print('pdf2img时间=', (endTime_pdf2img - startTime_pdf2img).seconds)
+
     return True
 
 
@@ -230,11 +275,33 @@ class ApplicationWindow(QMainWindow):
         if self.file_type != 2:
             self.file_type = 2
             self.clearFiles()
+        file_path = QFileDialog.getOpenFileName()[0]
+        if len(file_path) > 0:
+            file_path = file_path.replace('/', '\\')
+            file_name = file_path.split('\\')[-1].split('.')[0]
+            # print('\\'.join(file_path.split('\\')[0:-1]) + '\\' + file_name)
+            file_folder = '\\'.join(file_path.split('\\')[0:-1]) + '\\' + file_name
+            print(file_path, file_folder + '.pdf')
+            word_to_pdf(file_path, file_folder + '.pdf')
+            get_pdf_img(file_folder + '.pdf', file_folder)
+            self.loadSepFile(file_folder)
 
     def loadPDF(self):
         if self.file_type != 3:
             self.file_type = 3
             self.clearFiles()
+        if self.file_type != 3:
+            self.file_type = 3
+            self.clearFiles()
+
+        file_path = QFileDialog.getOpenFileName()[0]
+        if len(file_path) > 0:
+            file_path = file_path.replace('/', '\\')
+            file_name = file_path.split('\\')[-1].split('.')[0]
+            # print('\\'.join(file_path.split('\\')[0:-1]) + '\\' + file_name)
+            file_folder = '\\'.join(file_path.split('\\')[0:-1]) + '\\' + file_name
+            get_pdf_img(file_path, file_folder)
+            self.loadSepFile(file_folder)
 
     def clearFiles(self):
 
@@ -300,7 +367,7 @@ class ApplicationWindow(QMainWindow):
     def playList(self):
         if self.file_type == 0:
             self.playVideo(self.file_list[self.current_file])
-        if self.file_type == 1:
+        if self.file_type != 0:
             self.playImage()
 
     # 分时循环播放
@@ -320,14 +387,17 @@ class ApplicationWindow(QMainWindow):
         if self.current_file > 0:
             if self.file_type == 0:
                 self.playVideo(self.sep_file_list[self.current_file])
-            if self.file_type == 1:
+            if self.file_type != 0:
                 self.playImage()
 
     def showImage(self, imagePath):
         # self.setCentralWidget(self.image_widget)
-        img = QtGui.QPixmap(imagePath).scaled(self.image_widget.width(),
-                                                            self.image_widget.height())
+        img = QtGui.QPixmap(imagePath)
+        img_width = img.width()
+        img_height = img.height()
+        img = img.scaled(img_width * self.image_widget.height() // img_height, self.image_widget.height())
         self.image_widget.setPixmap(img)
+        self.image_widget.setAlignment(QtCore.Qt.AlignCenter)
 
     def playImage(self):
         self.imagePlaying = True
@@ -441,13 +511,13 @@ class ApplicationWindow(QMainWindow):
             self._fullscreen = not self._fullscreen
             if self.file_type == 0:
                 self.video_widget.setFullScreen(self._fullscreen)
-            if self.file_type == 1:
+            if self.file_type != 0:
                 self.playImage(self.file_list[self.current_file])
         else:
             self._fullscreen = not self._fullscreen
             if self.file_type == 0:
                 self.video_widget.setFullScreen(self._fullscreen)
-            if self.file_type == 1:
+            if self.file_type != 0:
                 print('ESC')
                 self.stopRunning()
                 self.hideImage()
@@ -465,7 +535,7 @@ class ApplicationWindow(QMainWindow):
                         self.nextFile()
                         self.playList()
 
-                if self.file_type == 1 and not self.imagePlaying:
+                if self.file_type != 0 and not self.imagePlaying:
                     self.playList()
 
             else:
@@ -473,7 +543,7 @@ class ApplicationWindow(QMainWindow):
                     self.video_widget.setFullScreen(self._fullscreen)
                     self.player.stop()
                     self.current_file = 0
-                if self.file_type == 1:
+                if self.file_type != 0:
                     self.current_file = 0
                     self.hideImage()
         else:
@@ -483,7 +553,7 @@ class ApplicationWindow(QMainWindow):
                     if self.player.state() == QMediaPlayer.StoppedState:
                         self.playSep()
                         print('running', self.player.state(), self.current_file)
-                if self.file_type == 1 and not self.imagePlaying:
+                if self.file_type != 0 and not self.imagePlaying:
                     self.playSep()
 
             else:
@@ -492,7 +562,7 @@ class ApplicationWindow(QMainWindow):
                     self.video_widget.setFullScreen(self._fullscreen)
                     self.player.stop()
                     self.current_file = 0
-                if self.file_type == 1:
+                if self.file_type != 0:
                     self.current_file = 0
                     self.hideImage()
 
