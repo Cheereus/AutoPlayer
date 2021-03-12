@@ -1,0 +1,6 @@
+data/
+.idea/
+.ipynb_checkpoints/
+build/
+dist/
+*.spec
