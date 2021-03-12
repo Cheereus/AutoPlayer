@@ -6,8 +6,14 @@ from PyQt5.Qt import QUrl
 import sys
 import time
 import sip
-from Utils import get_ppt_img
 import os
+from pptx_tools import utils
+
+
+# 将PPT转为图片
+def get_ppt_img(filePath, png_folder):
+    utils.save_pptx_as_png(png_folder, filePath, overwrite_folder=True)
+    return True
 
 
 # 建立线程间通讯
