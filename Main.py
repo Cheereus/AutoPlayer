@@ -155,6 +155,7 @@ class ApplicationWindow(QMainWindow):
         self.now_time = time.strftime("%H:%M:%S", time.localtime())
         self.start_time = '00:00:00'
         self.stop_time = '23:59:59'
+        self.interval_time = 2
 
         # 分时循环
         self.sep_file_list = {}
@@ -407,7 +408,7 @@ class ApplicationWindow(QMainWindow):
         self.image_widget.setFocus()
         self._fullscreen = True
         # 图片播放监听线程初始化
-        self.image_timer = ImageTimer(frequent=2)
+        self.image_timer = ImageTimer(frequent=self.interval_time)
         self.image_timer.timeSignal.signal[str].connect(self.imageStatusPulse)
         self.image_timer.start()
 
@@ -452,6 +453,9 @@ class ApplicationWindow(QMainWindow):
     def stop_time_change(self, value):
         self.stop_time = QtCore.QTime.toString(value)
 
+    def interval_time_change(self, value):
+        self.interval_time = int(value)
+
     # 分时循环播放的时间设置
     def start_time_list_change(self):
         v_id = int(self.sender().objectName())
@@ -492,6 +496,15 @@ class ApplicationWindow(QMainWindow):
         self.stop_time_btn.setFixedWidth(200)
         self.stop_time_btn.timeChanged.connect(self.stop_time_change)
         llayout.addRow(self.stop_time_label, self.stop_time_btn)
+
+        # 设置播放间隔
+        self.set_time_label = QLabel('\n设置播放等待间隔')
+        llayout.addRow(self.set_time_label)
+        self.interval_time_label = QLabel('间隔时间（秒）')
+        self.interval_time_btn = QLineEdit(str(self.interval_time))
+        self.interval_time_btn.setFixedWidth(200)
+        self.interval_time_btn.textChanged.connect(self.interval_time_change)
+        llayout.addRow(self.interval_time_label, self.interval_time_btn)
 
         self.start_play_btn = QPushButton('开始运行')
         self.start_play_btn.clicked.connect(self.startRunning)
